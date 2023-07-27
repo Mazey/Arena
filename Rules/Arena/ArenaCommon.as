@@ -51,37 +51,42 @@ shared class ArenaInstance
 		for(u8 i = 0; i < players.length(); i++)
 		{
 			CPlayer@ player = getPlayerByUsername(players[i].username);
-			
+
+			if (player is null)
+				continue;
+
 			u8 random_team = XORRandom(8);
 
 			if (i > 0)
 			{
-				CPlayer@ other_player = getPlayerByUsername(players[0].username);
-				if (other_player !is null)
+				ArenaPlayer@ arena_player = players[0];
+				if (arena_player !is null)
 				{
-					while (random_team == other_player.getTeamNum())
+					CPlayer@ other_player = getPlayerByUsername(players[0].username);
+
+					if (other_player !is null)
 					{
-						random_team = XORRandom(8);
+						while (random_team == other_player.getTeamNum())
+						{
+							random_team = XORRandom(8);
+						}
 					}
 				}
 			}
 
 			player.server_setTeamNum(random_team);
 
-			if (player !is null)
+			CBlob @blob = player.getBlob();
+
+			if (blob !is null)
 			{
 				CBlob @blob = player.getBlob();
-
-				if (blob !is null)
-				{
-					CBlob @blob = player.getBlob();
-					blob.server_SetPlayer(null);
-					blob.server_Die();
-				}
-
-				CBlob@ newBlob = server_CreateBlob(getRules().get_string("default class"), player.getTeamNum(), spawns[i]);
-				newBlob.server_SetPlayer(player);
+				blob.server_SetPlayer(null);
+				blob.server_Die();
 			}
+
+			CBlob@ newBlob = server_CreateBlob(getRules().get_string("default class"), player.getTeamNum(), spawns[i]);
+			newBlob.server_SetPlayer(player);
 		}
 	}
 
@@ -113,12 +118,49 @@ shared class ArenaInstance
 
 	void FinishMatch(ArenaPlayer@ winner, ArenaPlayer@ loser = null)
 	{
+		CRules@ rules = getRules();
 		ongoing = false;
 
 		if (winner !is null)
+		{
 			winner.result_value = -1;
 
+			if (id == 0)
+			{
+				CPlayer@ p = getPlayerByUsername(winner.username);
+
+				if (p !is null)
+				{
+					u16 streak = 0;
+					if (rules.exists(p.getUsername()+"arena streak"))
+						streak = rules.get_u16(p.getUsername()+"arena streak");
+
+					streak++;
+					rules.set_u16(p.getUsername()+"arena streak", streak);
+					rules.Sync(p.getUsername()+"arena streak", true); // because used in scoreboard
+
+					rules.set_string("arena winner", p.getUsername());
+				}
+			}
+		}
+
 		if (loser !is null)
+		{
 			loser.result_value = 1;
+
+			if (id == 0)
+			{
+				CPlayer@ p = getPlayerByUsername(loser.username);
+
+				if (p !is null)
+				{
+					if (rules.exists(p.getUsername()+"arena streak"))
+					{
+						rules.set_u16(p.getUsername()+"arena streak", 0);
+						rules.Sync(p.getUsername()+"arena streak", true); // because used in scoreboard
+					}
+				}
+			}
+		}
 	}
 }
