@@ -417,6 +417,8 @@ void onRenderScoreboard(CRules@ this)
 		else
 		{
 			warn("player " + p.getUsername() + " has no arena prop but is not spectating");
+			// probably just joined
+			spectators.push_back(p);
 		}
 	}
 

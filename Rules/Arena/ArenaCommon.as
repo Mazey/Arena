@@ -5,7 +5,6 @@ shared class ArenaPlayer
 	string username;
 	s8 arena_weight;
 	s8 result_value = 0; // 0 = no result, 1 = loss, -1 = win
-
 	
 	ArenaPlayer(string _username, s8 _arena_weight)
 	{
@@ -55,8 +54,6 @@ shared class ArenaInstance
 			if (player is null)
 				continue;
 
-			u8 random_team = XORRandom(8);
-
 			if (i > 0)
 			{
 				ArenaPlayer@ arena_player = players[0];
@@ -66,15 +63,17 @@ shared class ArenaInstance
 
 					if (other_player !is null)
 					{
-						while (random_team == other_player.getTeamNum())
+						u8 team_num = player.getTeamNum();
+						while (team_num == other_player.getTeamNum())
 						{
-							random_team = XORRandom(8);
+							team_num = XORRandom(8);
 						}
+
+						if (team_num != player.getTeamNum())
+							player.server_setTeamNum(team_num);
 					}
 				}
 			}
-
-			player.server_setTeamNum(random_team);
 
 			CBlob @blob = player.getBlob();
 
@@ -118,49 +117,12 @@ shared class ArenaInstance
 
 	void FinishMatch(ArenaPlayer@ winner, ArenaPlayer@ loser = null)
 	{
-		CRules@ rules = getRules();
 		ongoing = false;
 
 		if (winner !is null)
-		{
 			winner.result_value = -1;
 
-			if (id == 0)
-			{
-				CPlayer@ p = getPlayerByUsername(winner.username);
-
-				if (p !is null)
-				{
-					u16 streak = 0;
-					if (rules.exists(p.getUsername()+"arena streak"))
-						streak = rules.get_u16(p.getUsername()+"arena streak");
-
-					streak++;
-					rules.set_u16(p.getUsername()+"arena streak", streak);
-					rules.Sync(p.getUsername()+"arena streak", true); // because used in scoreboard
-
-					rules.set_string("arena winner", p.getUsername());
-				}
-			}
-		}
-
 		if (loser !is null)
-		{
 			loser.result_value = 1;
-
-			if (id == 0)
-			{
-				CPlayer@ p = getPlayerByUsername(loser.username);
-
-				if (p !is null)
-				{
-					if (rules.exists(p.getUsername()+"arena streak"))
-					{
-						rules.set_u16(p.getUsername()+"arena streak", 0);
-						rules.Sync(p.getUsername()+"arena streak", true); // because used in scoreboard
-					}
-				}
-			}
-		}
 	}
 }

@@ -1,6 +1,7 @@
 void onInit(CRules@ this)
 {
 	this.addCommandID("arena finish");
+	this.addCommandID("arena finish no stats");
 }
 
 void onRestart(CRules@ this)
@@ -9,12 +10,11 @@ void onRestart(CRules@ this)
 	this.set_string("current alert", "");
 }
 
-
 void onCommand(CRules@ this, u8 cmd, CBitStream@ params)
 {
 	if (cmd == this.getCommandID("arena finish"))
 	{
-		Sound::Play("RaidWarning.ogg");
+		Sound::Play("FanfareLose.ogg");
 		string name;
 		u16 streak;
 		if (!params.saferead_string(name) || !params.saferead_u16(streak)) 
@@ -25,8 +25,26 @@ void onCommand(CRules@ this, u8 cmd, CBitStream@ params)
 		if (player is null)
 			return;
 
-		string alert = getTranslatedString("Player {PLAYER} won the arena (streak {STREAK})!")
+		string alert = getTranslatedString("Player {PLAYER} won the arena! Current winstreak {STREAK}.")
 			.replace("{STREAK}", ""+streak)
+			.replace("{PLAYER}", player.getCharacterName());
+		this.set_string("current alert", alert);
+		this.set_u32("alert time", getGameTime());
+	}
+
+	if (cmd == this.getCommandID("arena finish no stats"))
+	{
+		Sound::Play("FanfareLose.ogg");
+		string name;
+		if (!params.saferead_string(name)) 
+			return;
+
+		CPlayer@ player = getPlayerByUsername(name);
+
+		if (player is null)
+			return;
+
+		string alert = getTranslatedString("Player {PLAYER} won the arena! (Need more players to track stats)")
 			.replace("{PLAYER}", player.getCharacterName());
 		this.set_string("current alert", alert);
 		this.set_u32("alert time", getGameTime());

@@ -196,22 +196,13 @@ class PNGLoader
 			break;
 
 			// ARENA
-			case map_colors::alpha_arena_blue:
+			case map_colors::alpha_arena:
 			{
 				autotile(offset);
 				CBlob@ ruin = spawnBlob(map, "tdm_spawn", 0, Vec2f(0, -20) + position, true);
 
 				ruin.set_u8("level", alpha);
-				print("created blue ruin level " + alpha);
-			} break;
-			
-			case map_colors::alpha_arena_red:
-			{
-				autotile(offset);
-				CBlob@ ruin = spawnBlob(map, "tdm_spawn", 1, Vec2f(0, -20) + position, true);
-
-				ruin.set_u8("level", alpha);
-				print("created red ruin level " + alpha);
+				print("created ruin level " + alpha);
 			} break;
 
 			};

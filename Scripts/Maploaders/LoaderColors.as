@@ -127,8 +127,7 @@ namespace map_colors
 		alpha_spiker           = 0xFFFFFF40, // ARGB(255, 255, 255,  64);
 
 		// ALPHA ARENA SPAWNS
-		alpha_arena_blue	   = 0xFF91BEE1, // ARGB(255, 145, 190, 225);
-		alpha_arena_red	   	   = 0xFFE1BE91, // ARGB(255, 225, 190, 145);
+		alpha_arena	   		   = 0xFF91BEE1, // ARGB(255, 145, 190, 225);
 
 		// BLOCKS
 		ladder                 = 0xFF42240B, // ARGB(255,  66,  36,  11);

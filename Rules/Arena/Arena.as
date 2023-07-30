@@ -1,7 +1,10 @@
 #define SERVER_ONLY
 
 #include "ArenaCommon.as";
+#include "ArenaStats.as";
+
 const int cooldown = getTicksASecond() * 5;
+const u8 MIN_PLAYERS = 4; // 2 arenas
 
 ArenaInstance@[] Arena;
 ArenaPlayer@[] new_queue; // new players who didn't play last round
@@ -79,6 +82,11 @@ void onNewPlayerJoin(CRules@ this, CPlayer@ player)
 	string username = player.getUsername();
 
 	new_queue.push_back(ArenaPlayer(username, 0));
+
+	this.set_u16(username+"arena streak", 0);
+	this.Sync(username+"arena streak", true);
+
+	statNewPlayerJoined(this, player);
 }
 
 void onPlayerDie(CRules@ this, CPlayer@ victim, CPlayer@ attacker, u8 customData)
@@ -117,15 +125,7 @@ void onPlayerLeave(CRules@ this, CPlayer@ player)
 	}
 
 	if (!is_queued)
-	{
 		onPlayerLost(this, player, true);
-
-		if (this.exists(player.getUsername()+"arena streak"))
-		{
-			this.set_u16(player.getUsername()+"arena streak", 0); // no cheating
-			this.Sync(player.getUsername()+"arena streak", true);
-		}
-	}
 }
 
 void onPlayerLost(CRules@ this, CPlayer@ player, bool leaver = false)
@@ -145,11 +145,51 @@ void onPlayerLost(CRules@ this, CPlayer@ player, bool leaver = false)
 				{
 					s8 victim = j;
 
-					instance.FinishMatch(instance.players[1 - victim], instance.players[victim]);
-				}
+					ArenaPlayer@ winner = instance.players[1 - victim];
+					ArenaPlayer@ loser = instance.players[victim];
 
-				if (leaver)
-					instance.players.removeAt(j);
+					// rewrite the winner !is null and loser !is null below to be more readable/simpler
+					if (arenaPlayers() >= MIN_PLAYERS)
+					{
+						addStat(winner, KILLS);
+						addStat(winner, MATCHES);
+						addStat(loser, DEATHS);
+						addStat(loser, MATCHES);
+					}
+
+					if (i == 0)
+					{
+						if (winner !is null)
+							this.set_string("arena winner", winner.username);
+
+						if (arenaPlayers() >= MIN_PLAYERS)
+						{
+							if (loser !is null)
+								resetStreak(this, loser.username);
+
+							if (winner !is null)
+							{
+								u16 streak = 0;
+
+								if (this.exists(winner.username+"arena streak"))
+									streak = this.get_u16(winner.username+"arena streak");
+
+								streak++;
+
+								setStreak(this, winner.username, streak);
+							}
+						}
+						else
+						{
+							if (winner !is null)
+								resetStreak(this, winner.username);
+							if (loser !is null)
+								resetStreak(this, loser.username);
+						}
+					}
+
+					instance.FinishMatch(winner, loser);
+				}
 			}
 		}
 	}
@@ -173,6 +213,14 @@ void populateFromQueue(ArenaPlayer@[]@ &in queue)
 			{
 				getRules().set_u8(p.getUsername()+"current_arena", i);
 				getRules().Sync(p.getUsername()+"current_arena", true);
+
+				u8 teamnum = p.getTeamNum();
+
+				if (teamnum == getRules().getSpectatorTeamNum())
+				{			
+					u8 random_team = XORRandom(8);
+					p.server_setTeamNum(random_team);
+				}
 			}
 
 			queue.removeAt(0);
@@ -201,6 +249,36 @@ void startArena()
 
 void endArena()
 {
+	CRules@ rules = getRules();
+
+	if (rules.exists("arena winner"))
+	{
+		CPlayer@ p = getPlayerByUsername(rules.get_string("arena winner"));
+
+		if (p !is null)
+		{
+			CBitStream bt;
+
+			bt.write_string(p.getUsername());
+
+			if (arenaPlayers() >= MIN_PLAYERS)
+			{
+				u16 streak = rules.get_u16(p.getUsername()+"arena streak");
+				bt.write_u16(streak);
+
+				updateStreakStat(ArenaPlayer(p.getUsername(), 0), streak); // i aint retrieving his arenaplayer just for this
+
+				rules.SendCommand(rules.getCommandID("arena finish"), bt);
+			}
+			else
+			{
+				rules.SendCommand(rules.getCommandID("arena finish no stats"), bt);
+			}
+		}
+	}
+
+	ArenaPlayer@[] last_match_players;
+
 	// add all players to priority queue
 	for(u8 i = 0; i < Arena.length(); i++)
 	{
@@ -209,6 +287,8 @@ void endArena()
 		for(u8 j = 0; j < instance.players.length(); j++)
 		{
 			ArenaPlayer@ player = instance.players[j];
+
+			last_match_players.push_back(player);
 
 			if (getPlayerByUsername(player.username) is null)
 				continue;
@@ -221,23 +301,9 @@ void endArena()
 
 	priority_queue.sortAsc();
 
+	saveStats(last_match_players);
+
 	Arena.clear();
-
-	CRules@ rules = getRules();
-
-	if (rules.exists("arena winner"))
-	{
-		CPlayer@ p = getPlayerByUsername(rules.get_string("arena winner"));
-
-		if (p is null)
-			return;
-		
-		CBitStream bt;
-		bt.write_string(p.getUsername());
-		bt.write_u16(rules.get_u16(p.getUsername()+"arena streak"));
-
-		rules.SendCommand(rules.getCommandID("arena finish"), bt);
-	}
 }
 
 void setupArena()
@@ -276,4 +342,27 @@ void setupArena()
 			}
 		}
 	}
+}
+
+void resetStreak(CRules@ this, string username)
+{
+	setStreak(this, username, 0);
+}
+
+void setStreak(CRules@ this, string username, u16 streak)
+{
+	this.set_u16(username+"arena streak", streak);
+	this.Sync(username+"arena streak", true);
+}
+
+u8 arenaPlayers()
+{
+	// print total of people in the arena
+	u8 total = 0;
+	for(u8 i = 0; i < Arena.length(); i++)
+	{
+		total += Arena[i].players.length();
+	}
+
+	return total;
 }
