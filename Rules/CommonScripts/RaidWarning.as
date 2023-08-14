@@ -1,7 +1,9 @@
+#include "ArenaCommon.as";
+
 void onInit(CRules@ this)
 {
-	this.addCommandID("arena finish");
-	this.addCommandID("arena finish no stats");
+	this.addCommandID(ARENA_FINISH_ID);
+	this.addCommandID(ARENA_FINISH_NO_STATS_ID);
 }
 
 void onRestart(CRules@ this)
@@ -12,7 +14,7 @@ void onRestart(CRules@ this)
 
 void onCommand(CRules@ this, u8 cmd, CBitStream@ params)
 {
-	if (cmd == this.getCommandID("arena finish"))
+	if (cmd == this.getCommandID(ARENA_FINISH_ID))
 	{
 		Sound::Play("FanfareLose.ogg");
 		string name;
@@ -22,17 +24,17 @@ void onCommand(CRules@ this, u8 cmd, CBitStream@ params)
 
 		CPlayer@ player = getPlayerByUsername(name);
 
-		if (player is null)
-			return;
+		if (player !is null)
+			name = player.getCharacterName();
 
 		string alert = getTranslatedString("Player {PLAYER} won the arena! Current winstreak {STREAK}.")
 			.replace("{STREAK}", ""+streak)
-			.replace("{PLAYER}", player.getCharacterName());
+			.replace("{PLAYER}", name);
 		this.set_string("current alert", alert);
 		this.set_u32("alert time", getGameTime());
 	}
 
-	if (cmd == this.getCommandID("arena finish no stats"))
+	if (cmd == this.getCommandID(ARENA_FINISH_NO_STATS_ID))
 	{
 		Sound::Play("FanfareLose.ogg");
 		string name;
@@ -41,11 +43,11 @@ void onCommand(CRules@ this, u8 cmd, CBitStream@ params)
 
 		CPlayer@ player = getPlayerByUsername(name);
 
-		if (player is null)
-			return;
+		if (player !is null)
+			name = player.getCharacterName();
 
 		string alert = getTranslatedString("Player {PLAYER} won the arena! (Need more players to track stats)")
-			.replace("{PLAYER}", player.getCharacterName());
+			.replace("{PLAYER}", name);
 		this.set_string("current alert", alert);
 		this.set_u32("alert time", getGameTime());
 	}

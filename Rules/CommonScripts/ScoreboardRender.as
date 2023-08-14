@@ -2,6 +2,7 @@
 #include "Accolades.as";
 #include "ColoredNameToggleCommon.as";
 #include "HSVToRGB.as";
+#include "ArenaCommon.as";
 
 CPlayer@ hoveredPlayer;
 Vec2f hoveredPos;
@@ -78,11 +79,11 @@ float drawScoreboard(CPlayer@ localplayer, CPlayer@[] players, Vec2f topleft, u8
 	}
 	else
 	{
-		bottomright = Vec2f(Maths::Max(screenMidX - 26, topleft.x+maxMenuWidth), topleft.y + (players.length + 5.5) * stepheight);
+		bottomright = Vec2f(screenMidX - 26, topleft.y + (players.length + 5.5) * stepheight);
 		topleft.x = Maths::Max(100, screenMidX-maxMenuWidth);
 	}
 
-	GUI::DrawPane(topleft, bottomright, SColor(230, 190- arena_id * 5, arena_id * 15, arena_id * 15));
+	GUI::DrawPane(topleft, bottomright, SColor(230, 165 - arena_id * 10, arena_id * 15, arena_id * 15));
 
 	//offset border
 	topleft.x += stepheight;
@@ -121,10 +122,10 @@ float drawScoreboard(CPlayer@ localplayer, CPlayer@[] players, Vec2f topleft, u8
 	GUI::DrawText(getTranslatedString("Ping"), Vec2f(bottomright.x - 140, topleft.y), SColor(0xffffffff));
 	GUI::DrawText(getTranslatedString("Kills"), Vec2f(bottomright.x - 85, topleft.y), SColor(0xffffffff));
 	GUI::DrawText(getTranslatedString("Deaths"), Vec2f(bottomright.x - 40, topleft.y), SColor(0xffffffff));
-	if(arena_id == 0)
-	{
-		GUI::DrawText(getTranslatedString("Streak"), Vec2f(bottomright.x - 265, topleft.y), HSVToRGB(getGameTime() % 360, 1.0f, 1.0f));
-	}
+	// if(arena_id == 0)
+	// {
+	// 	GUI::DrawText(getTranslatedString("Streak"), Vec2f(bottomright.x - 265, topleft.y), HSVToRGB(getGameTime() % 360, 1.0f, 1.0f));
+	// }
 	if(draw_age)
 	{
 		GUI::DrawText(getTranslatedString("Age | "), Vec2f(topleft.x, topleft.y), SColor(0xffffffff));
@@ -360,15 +361,15 @@ float drawScoreboard(CPlayer@ localplayer, CPlayer@[] players, Vec2f topleft, u8
 			}
 
 		}
-		
-		if (arena_id == 0 && rules.exists(p.getUsername()+"arena streak"))
-		{
-			u16 streak = rules.get_u16(p.getUsername()+"arena streak");
-			if (streak > 0)
-			{
-				GUI::DrawText("" + streak, Vec2f(bottomright.x - 265, topleft.y), HSVToRGB(getGameTime() % 360, 1.0f, 1.0f));
-			}
-		}
+		// moving this to arena interface at least - currently broken anyway, shows for both players
+		// if (arena_id == 0 && rules.exists(ARENA_WINNER_STREAK))
+		// {
+		// 	u16 streak = rules.get_u16(ARENA_WINNER_STREAK);
+		// 	if (streak > 0)
+		// 	{
+		// 		GUI::DrawText("" + streak, Vec2f(bottomright.x - 265, topleft.y), HSVToRGB(getGameTime() % 360, 1.0f, 1.0f));
+		// 	}
+		// }
 
 		GUI::DrawText("" + ping_in_ms, Vec2f(bottomright.x - 140, topleft.y), SColor(0xffffffff));
 		GUI::DrawText("" + p.getKills(), Vec2f(bottomright.x - 85, topleft.y), SColor(0xffffffff));

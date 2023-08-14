@@ -3,26 +3,35 @@
 #include "ArenaCommon.as";
 #include "ArenaStats.as";
 
-const int cooldown = getTicksASecond() * 5;
-const u8 MIN_PLAYERS = 4; // 2 arenas
-
-ArenaInstance@[] Arena;
+ArenaInstance[] Arena;
 ArenaPlayer@[] new_queue; // new players who didn't play last round
 ArenaPlayer@[] priority_queue; // players who played last round
 
 void onInit(CRules@ this)
 {
 	if (!this.exists("default class"))
-	{
 		this.set_string("default class", "knight");
-	}
-	
+
 	if (!this.exists("restart_rules_after_game_time"))
-	{
 		this.set_s32("restart_rules_after_game_time", cooldown);
+
+	this.set_s32("restart_rules_after_game", getGameTime() + cooldown);
+
+	if (!this.exists(ARENA_WINNER))
+	{
+		this.set_string(ARENA_WINNER, "null");
+		this.Sync(ARENA_WINNER, true);
 	}
 	
-	this.set_s32("restart_rules_after_game", getGameTime() + cooldown);
+	if (!this.exists(ARENA_WINNER_STREAK))
+	{
+		this.set_u16(ARENA_WINNER_STREAK, 0);
+		this.Sync(ARENA_WINNER_STREAK, true);
+	}
+
+	this.addCommandID(ARENA_UPDATE_INT_ID);
+	this.addCommandID(ARENA_DESTROY_INT_ID);
+	this.addCommandID(ARENA_WINNER_INT_ID);
 }
 
 void onTick(CRules@ this)
@@ -81,10 +90,33 @@ void onNewPlayerJoin(CRules@ this, CPlayer@ player)
 
 	string username = player.getUsername();
 
-	new_queue.push_back(ArenaPlayer(username, 0));
+	bool was_playing = false;
 
-	this.set_u16(username+"arena streak", 0);
-	this.Sync(username+"arena streak", true);
+	for (u8 i = 0; i < priority_queue.length(); i++)
+	{
+		if (priority_queue[i].username == username)
+		{
+			was_playing = true;
+			break;
+		}
+	}
+
+	for (u8 i = 0; i < Arena.length(); i++)
+	{
+		ArenaInstance@ instance = Arena[i];
+
+		for (u8 j = 0; j < instance.players.length(); j++)
+		{
+			if (instance.players[j].username == username)
+			{
+				was_playing = true;
+				break;
+			}
+		}
+	}
+
+	if (!was_playing)
+		new_queue.push_back(ArenaPlayer(username, 0));
 
 	statNewPlayerJoined(this, player);
 }
@@ -148,45 +180,50 @@ void onPlayerLost(CRules@ this, CPlayer@ player, bool leaver = false)
 					ArenaPlayer@ winner = instance.players[1 - victim];
 					ArenaPlayer@ loser = instance.players[victim];
 
-					// rewrite the winner !is null and loser !is null below to be more readable/simpler
 					if (arenaPlayers() >= MIN_PLAYERS)
 					{
 						addStat(winner, KILLS);
 						addStat(winner, MATCHES);
 						addStat(loser, DEATHS);
 						addStat(loser, MATCHES);
-					}
-
-					if (i == 0)
-					{
-						if (winner !is null)
-							this.set_string("arena winner", winner.username);
-
-						if (arenaPlayers() >= MIN_PLAYERS)
+						
+						if (i == 0)
 						{
-							if (loser !is null)
-								resetStreak(this, loser.username);
+							string arena_winner = this.get_string(ARENA_WINNER);
 
-							if (winner !is null)
+							if (arena_winner != winner.username)
 							{
-								u16 streak = 0;
+								this.set_u16(ARENA_WINNER_STREAK, 0);
+								this.Sync(ARENA_WINNER_STREAK, true);
 
-								if (this.exists(winner.username+"arena streak"))
-									streak = this.get_u16(winner.username+"arena streak");
+								this.set_string(ARENA_WINNER, winner.username);
+								this.Sync(ARENA_WINNER, true);
+							}
+							else
+							{
+								u16 streak = this.get_u16(ARENA_WINNER_STREAK);
 
 								streak++;
 
-								setStreak(this, winner.username, streak);
+								this.set_u16(ARENA_WINNER_STREAK, streak);
+								this.Sync(ARENA_WINNER_STREAK, true);
 							}
 						}
-						else
-						{
-							if (winner !is null)
-								resetStreak(this, winner.username);
-							if (loser !is null)
-								resetStreak(this, loser.username);
-						}
 					}
+					else if (i == 0)
+					{
+						this.set_u16(ARENA_WINNER_STREAK, 0);
+						this.Sync(ARENA_WINNER_STREAK, true);
+
+						this.set_string(ARENA_WINNER, winner.username);
+						this.Sync(ARENA_WINNER, true);
+					}
+
+					CBitStream bt;
+					bt.write_u8(i);
+					bt.write_string(winner.username);
+
+					this.SendCommand(getRules().getCommandID(ARENA_WINNER_INT_ID), bt);
 
 					instance.FinishMatch(winner, loser);
 				}
@@ -195,7 +232,7 @@ void onPlayerLost(CRules@ this, CPlayer@ player, bool leaver = false)
 	}
 }
 
-void populateFromQueue(ArenaPlayer@[]@ &in queue)
+void populateFromQueue(ArenaPlayer@[]& queue)
 {
 	if (queue.length() <= 0)
 		return;
@@ -211,8 +248,8 @@ void populateFromQueue(ArenaPlayer@[]@ &in queue)
 			CPlayer@ p = getPlayerByUsername(player.username);
 			if (p !is null)
 			{
-				getRules().set_u8(p.getUsername()+"current_arena", i);
-				getRules().Sync(p.getUsername()+"current_arena", true);
+				getRules().set_u8(p.getUsername() + ARENA_PLAYER_CURRENT, i);
+				getRules().Sync(p.getUsername() + ARENA_PLAYER_CURRENT, true);
 
 				u8 teamnum = p.getTeamNum();
 
@@ -236,12 +273,29 @@ void startArena()
 {
 	setupArena();
 
-	populateFromQueue(@priority_queue);
-	populateFromQueue(@new_queue);
+	populateFromQueue(priority_queue);
+	populateFromQueue(new_queue);
+
+	getRules().SendCommand(getRules().getCommandID(ARENA_DESTROY_INT_ID), CBitStream());
 
 	for(u8 i = 0; i < Arena.length(); i++)
 	{
-		Arena[i].StartMatch();
+		ArenaInstance@ instance = Arena[i];
+		instance.StartMatch();
+
+		CBitStream bt;
+		bt.write_u8(instance.id); // arena id
+
+		u8 player_amount = instance.players.length();
+
+		string player1 = player_amount > 0 && instance.players[0] != null ? instance.players[0].username : "none";
+		string player2 = player_amount > 1 && instance.players[1] != null ? instance.players[1].username : "none";
+
+		bt.write_string(player2); // player 2
+		bt.write_string(player1); // player 1
+		bt.write_bool(instance.ongoing); // ongoing
+
+		getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
 	}
 	
 	getRules().set_s32("restart_rules_after_game", getGameTime() + cooldown);
@@ -251,29 +305,26 @@ void endArena()
 {
 	CRules@ rules = getRules();
 
-	if (rules.exists("arena winner"))
+	if (rules.exists(ARENA_WINNER))
 	{
-		CPlayer@ p = getPlayerByUsername(rules.get_string("arena winner"));
+		CBitStream bt;
 
-		if (p !is null)
+		string username = rules.get_string(ARENA_WINNER);
+
+		bt.write_string(username);
+
+		if (arenaPlayers() >= MIN_PLAYERS)
 		{
-			CBitStream bt;
+			u16 streak = rules.get_u16(ARENA_WINNER_STREAK);
+			bt.write_u16(streak);
 
-			bt.write_string(p.getUsername());
+			updateStreakStat(username, streak);
 
-			if (arenaPlayers() >= MIN_PLAYERS)
-			{
-				u16 streak = rules.get_u16(p.getUsername()+"arena streak");
-				bt.write_u16(streak);
-
-				updateStreakStat(ArenaPlayer(p.getUsername(), 0), streak); // i aint retrieving his arenaplayer just for this
-
-				rules.SendCommand(rules.getCommandID("arena finish"), bt);
-			}
-			else
-			{
-				rules.SendCommand(rules.getCommandID("arena finish no stats"), bt);
-			}
+			rules.SendCommand(rules.getCommandID(ARENA_FINISH_ID), bt);
+		}
+		else
+		{
+			rules.SendCommand(rules.getCommandID(ARENA_FINISH_NO_STATS_ID), bt);
 		}
 	}
 
@@ -342,17 +393,6 @@ void setupArena()
 			}
 		}
 	}
-}
-
-void resetStreak(CRules@ this, string username)
-{
-	setStreak(this, username, 0);
-}
-
-void setStreak(CRules@ this, string username, u16 streak)
-{
-	this.set_u16(username+"arena streak", streak);
-	this.Sync(username+"arena streak", true);
 }
 
 u8 arenaPlayers()

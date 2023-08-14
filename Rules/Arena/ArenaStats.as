@@ -50,9 +50,13 @@ void statNewPlayerJoined(CRules@ this, CPlayer@ player)
 
 	// set stats to rule props
 	this.set_u16(player.getUsername() + statNames[KILLS], kills);
+	this.Sync(player.getUsername() + statNames[KILLS], true);
 	this.set_u16(player.getUsername() + statNames[STREAK], streak);
+	this.Sync(player.getUsername() + statNames[STREAK], true);
 	this.set_u16(player.getUsername() + statNames[MATCHES], matches);
+	this.Sync(player.getUsername() + statNames[MATCHES], true);
 	this.set_u16(player.getUsername() + statNames[DEATHS], deaths);
+	this.Sync(player.getUsername() + statNames[DEATHS], true);
 }
 
 void addStat(ArenaPlayer@ player, StatType stat)
@@ -68,18 +72,18 @@ void addStat(ArenaPlayer@ player, StatType stat)
 	rules.add_u16(player.username + statNames[stat], 1);
 }
 
-void updateStreakStat(ArenaPlayer@ player, u16 streak)
+void updateStreakStat(string username, u16 streak)
 {
-	if (player is null) 
-		return;
-
 	CRules@ rules = getRules();
 	
-	if (!rules.exists(player.username + statNames[STREAK]))
+	if (!rules.exists(username + statNames[STREAK]))
 		return;
 
-	if (streak > rules.get_u16(player.username + statNames[STREAK]))
-		rules.set_u16(player.username + statNames[STREAK], streak);
+	if (streak > rules.get_u16(username + statNames[STREAK]))
+	{
+		rules.set_u16(username + statNames[STREAK], streak);
+		rules.Sync(username + statNames[STREAK], true);
+	}
 }
 
 void saveStats(ArenaPlayer@[] players)

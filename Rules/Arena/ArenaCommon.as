@@ -1,4 +1,17 @@
-const string ARENA_PROP = "Arena array";
+const string ARENA_UPDATE_INT_ID = "arena update interface";
+const string ARENA_DESTROY_INT_ID = "arena destroy interface";
+const string ARENA_WINNER_INT_ID = "arena winner interface";
+
+const string ARENA_FINISH_ID = "arena finished";
+const string ARENA_FINISH_NO_STATS_ID = "arena finished no stats";
+
+const string ARENA_WINNER = "arena winner";
+const string ARENA_WINNER_STREAK = "arena winner streak";
+
+const string ARENA_PLAYER_CURRENT = "current_arena";
+
+const int cooldown = getTicksASecond() * 5;
+const u8 MIN_PLAYERS = 4; // 2 arenas
 
 shared class ArenaPlayer
 {
@@ -98,8 +111,6 @@ shared class ArenaInstance
 			print(players[i].username);
 		}
 		print("----");
-		
-		ongoing = true;
 
 		switch (players.length())
 		{
@@ -110,6 +121,7 @@ shared class ArenaInstance
 			break;
 			case 2:
 				print("arena " + id + " starting (" + players[0].username + " vs " + players[1].username + ")");
+				ongoing = true;
 				SpawnPlayers();
 			break;
 		}
@@ -124,5 +136,26 @@ shared class ArenaInstance
 
 		if (loser !is null)
 			loser.result_value = 1;
+	}
+}
+
+shared class InterfaceArenaInstance // omit the players array for simplicity
+{
+	u8 id;
+	string[] players;
+	bool ongoing = true;
+	s8 winner = -1;
+
+	InterfaceArenaInstance() {}
+
+	void setWinner(string player)
+	{
+		s8 index = players.find(player);
+
+		if (index > -1)
+		{
+			winner = index;
+			ongoing = false;
+		}
 	}
 }
