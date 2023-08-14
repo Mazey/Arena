@@ -119,6 +119,25 @@ void onNewPlayerJoin(CRules@ this, CPlayer@ player)
 		new_queue.push_back(ArenaPlayer(username, 0));
 
 	statNewPlayerJoined(this, player);
+
+	
+	
+	///// TEST ARENAS
+	CBitStream bt;
+
+	bt.write_u8(0); // arena id
+
+	string player1 = "none";
+	string player2 = "none";
+
+	bt.write_string(player2); // player 2
+	bt.write_string(player1); // player 1
+	bt.write_bool(true); // ongoing
+
+	getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
+	getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
+	getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
+	/////
 }
 
 void onPlayerDie(CRules@ this, CPlayer@ victim, CPlayer@ attacker, u8 customData)
