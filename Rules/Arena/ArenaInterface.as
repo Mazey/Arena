@@ -2,6 +2,7 @@
 
 #include "ScoreboardCommon.as";
 #include "ArenaCommon.as";
+#include "ArenaStats.as";
 #include "HSVToRGB.as";
 
 const SColor c_regular = color_white;
@@ -167,6 +168,8 @@ void onRender(CRules@ this)
 		tl.y = br.y + padding;
 	}
 
+	tl.y += padding;
+
 	for (u8 i = 0; i < arena_amount; i++)
 	{
 		tl.y += padding;
@@ -177,33 +180,79 @@ void onRender(CRules@ this)
 	if (render_more)
 	{
 		Vec2f br = Vec2f(getScreenWidth() / 2, tl.y);
-		tl = Vec2f(tl.x + ongoing_width + padding, 2 * padding + queue_height);
+		tl = Vec2f(tl.x + ongoing_width + padding, padding);
+		if (spectators.length > 0)
+			tl.y += queue_height + padding;
 		GUI::DrawPane(tl, br, c_dark);
 		GUI::SetFont("menuoption");
 
-		string streak_text = "Top streak";
-		string rank_text = "Ranking";
+		// headers
 
-		Vec2f streak_dimension;
-		GUI::GetTextDimensions(streak_text, streak_dimension);
-		GUI::DrawButton(Vec2f(tl.x + padding, tl.y - 2 * padding + 4), Vec2f(tl.x + 3 * padding + streak_dimension.x, tl.y + 4));
-		GUI::DrawTextCentered(streak_text, Vec2f(tl.x + 3 * padding / 2 + streak_dimension.x / 2, tl.y - padding + 2), c_regular);
-		//GUI::DrawLine2D(Vec2f(tl.x + 2 * padding + streak_dimension.x / 2, tl.y + 4), Vec2f(tl.x + 2 * padding + streak_dimension.x / 2, br.y), c_dark);
+		string[] texts = {
+			"Top streak",
+			"Winrate",
+			"Matches",
+			"Wins"
+		};
 
-		Vec2f rank_dimension;
-		GUI::GetTextDimensions(rank_text, rank_dimension);
-		GUI::DrawButton(Vec2f(tl.x + 4 * padding + streak_dimension.x, tl.y - 2 * padding + 4), Vec2f(tl.x + 6 * padding + streak_dimension.x + rank_dimension.x, tl.y + 4));
-		GUI::DrawTextCentered(rank_text, Vec2f(tl.x + 4.5 * padding + streak_dimension.x + rank_dimension.x / 2, tl.y - padding + 2), c_regular);
-		//GUI::DrawLine2D(Vec2f(tl.x + 5 * padding + streak_dimension.x + rank_dimension.x / 2, tl.y + 4), Vec2f(tl.x + 5 * padding + streak_dimension.x + rank_dimension.x / 2, br.y), c_dark);
+		f32 text_width = 50;
 
+		for (u8 i = 0; i < texts.length; i++)
+		{
+			GUI::DrawText(texts[i], Vec2f(br.x - padding * (i + 1) - text_width * (i + 1), tl.y), c_regular);
+		}
+		
+		GUI::DrawLine2D(tl + Vec2f(padding / 2, 2 * padding), Vec2f(br.x - padding / 2, tl.y + 2 * padding), c_dark);
+
+		// draw lines
 		for (u8 i = 0; i < arena_amount; i++)
 		{
-			// get centre of this renderMatch object
-			f32 y_offset = i * (ongoing_height + padding);
-			Vec2f center = Vec2f(tl.x + ongoing_width / 2, tl.y + y_offset + ongoing_height / 2 - 1);
+			// draw lines at the same position of each renderMatch DrawLine2D
+			// first get the centre of each renderMatch
+			// then draw 2 lines in a similar fashion
 
-			GUI::DrawLine2D(Vec2f(tl.x + padding, center.y + padding / 2), Vec2f(br.x - padding, center.y + padding / 2), c_dead);
-			GUI::DrawLine2D(Vec2f(tl.x + padding, center.y + ongoing_height / 2 + padding / 2), Vec2f(br.x - padding, center.y + ongoing_height / 2 + padding / 2), c_dead);
+			f32 y = 3 + tl.y + padding + i * (ongoing_height + padding) + ongoing_height / 2;
+			GUI::DrawLine2D(Vec2f(tl.x + padding / 2, y), Vec2f(br.x - padding / 2, y), c_dead);
+			GUI::DrawLine2D(Vec2f(tl.x + padding / 2, y + ongoing_height / 2), Vec2f(br.x - padding / 2, y  + ongoing_height / 2), c_dead);
+
+			// get players
+			InterfaceArenaInstance@ instance = interface_arena[i];
+			string player1 = instance.players[0];
+			string player2 = instance.players[1];
+			f32 stat_x = br.x - padding * 4 - text_width * 4;
+			y -= 13;
+
+			if (player1 != "none")
+			{
+				u16 kills = this.get_u16(player1 + statNames[KILLS]);
+				u16 matches = this.get_u16(player1 + statNames[MATCHES]);
+				u8 winrate = matches > 0 ? (kills * 100) / matches : 0;
+				u16 streak = this.get_u16(player1 + statNames[STREAK]);
+				GUI::DrawText("" + kills, Vec2f(stat_x, y), c_regular); // wins
+				GUI::DrawText("" + matches, Vec2f(stat_x + padding + text_width, y), c_regular); // matches
+				GUI::DrawText("" + winrate + "%", Vec2f(stat_x + padding * 2 + text_width * 2, y), c_regular); // winrate
+				GUI::DrawText("" + streak, Vec2f(stat_x + padding * 3 + text_width * 3, y), c_regular); // streak
+			}
+
+			u8 age_icon = drawAge(player1);
+			if (age_icon > 0)
+				GUI::DrawIcon("AccoladeBadges", age_icon, Vec2f(16, 16), tl + Vec2f(padding, y - 8), 0.5f);
+
+			if (player2 != "none")
+			{
+				u16 kills = this.get_u16(player2 + statNames[KILLS]);
+				u16 matches = this.get_u16(player2 + statNames[MATCHES]);
+				u8 winrate = matches > 0 ? (kills * 100) / matches : 0;
+				u16 streak = this.get_u16(player2 + statNames[STREAK]);
+				GUI::DrawText("" + kills, Vec2f(stat_x, y + ongoing_height / 2), c_regular);
+				GUI::DrawText("" + matches, Vec2f(stat_x + padding + text_width, y + ongoing_height / 2), c_regular);
+				GUI::DrawText("" + winrate + "%", Vec2f(stat_x + padding * 2 + text_width * 2, y + ongoing_height / 2), c_regular);
+				GUI::DrawText("" + streak, Vec2f(stat_x + padding * 3 + text_width * 3, y + ongoing_height / 2), c_regular);
+			}
+
+			age_icon = drawAge(player2);
+			if (age_icon > 0)
+				GUI::DrawIcon("AccoladeBadges", age_icon, Vec2f(16, 16), tl + Vec2f(padding, y + ongoing_height / 2 - 8), 0.5f);
 		}
 	}
 
@@ -260,18 +309,18 @@ float renderMatch(Vec2f tl, f32 width, f32 height, InterfaceArenaInstance@ insta
 	GUI::DrawLine2D(Vec2f(tl.x + arena_name_width + padding * 2, center.y - padding), Vec2f(br.x - 2 * padding, center.y - padding), (instance.id == 0 && winner_pos == 0 ? HSVToRGB(2 * getGameTime() % 360, 1.0f, 1.0f) : c_dead));
 
 	GUI::DrawText(name2, tl + Vec2f(arena_name_width + padding * 2, height / 2 + padding), (instance.ongoing ? c_regular : (instance.winner == 1 ? c_active : c_dead)));
-	GUI::DrawLine2D(Vec2f(tl.x + arena_name_width + padding * 2, br.y - padding), Vec2f(br.x - 2 * padding, br.y - padding), (instance.id == 0 && winner_pos == 1 ? HSVToRGB(2 * getGameTime() % 360, 1.0f, 1.0f) : c_dead));
+	GUI::DrawLine2D(Vec2f(tl.x + arena_name_width + padding * 2, br.y - padding - 1), Vec2f(br.x - 2 * padding, br.y - padding - 1), (instance.id == 0 && winner_pos == 1 ? HSVToRGB(2 * getGameTime() % 360, 1.0f, 1.0f) : c_dead));
 
 	if (instance.id == 0 && winner_pos > -1)
 	{
 		u16 streak = rules.get_u16(ARENA_WINNER_STREAK);
-		f32 crown_height = padding + height / 2 * winner_pos;
-		Vec2f crown_offset = Vec2f(-32, 8);
+		f32 crown_y = winner_pos == 0 ? center.y - padding : br.y - padding - 1;
+		Vec2f crown_offset = Vec2f(-32, -16);
 
 		if (streak > 0)
-			GUI::DrawTextCentered("" + streak, Vec2f(br.x - padding - 12, crown_height + 16), HSVToRGB(2 * getGameTime() % 360, 1.0f, 1.0f));
+			GUI::DrawTextCentered("" + streak, Vec2f(br.x - padding - 12, crown_y - 8), HSVToRGB(2 * getGameTime() % 360, 1.0f, 1.0f));
 	
-		GUI::DrawIcon(CROWN_ICON, CROWN_ICON_NO, Vec2f(16, 16), Vec2f(br.x - padding, crown_height) + crown_offset, 0.5f);
+		GUI::DrawIcon(CROWN_ICON, CROWN_ICON_NO, Vec2f(16, 16), Vec2f(br.x - padding, crown_y) + crown_offset, 0.5f);
 	}
 
 	return br.y;
@@ -283,4 +332,119 @@ void onRenderScoreboard(CRules@ this) // noob game tbh
 
 	GUI::SetFont("menuoption");
 	drawServerInfo();
+}
+
+u8 drawAge(string username)
+{
+	CPlayer@ p = getPlayerByUsername(username);
+
+	if (p is null)
+		return 0;
+	
+	int regtime = p.getRegistrationTime();
+	if (regtime > 0)
+	{
+		int reg_month = Time_Month(regtime);
+		int reg_day = Time_MonthDate(regtime);
+		int reg_year = Time_Year(regtime);
+
+		int days = Time_DaysSince(regtime);
+
+		int age_icon_start = 32;
+		int icon = 0;
+		//less than a month?
+		if (days < 28)
+		{
+			int week = days / 7;
+			icon = week;
+		}
+		else
+		{
+			//we use 30 day "months" here
+			//for simplicity and consistency of badge allocation
+			int months = days / 30;
+			if (months < 12)
+			{
+				switch(months) {
+					case 0:
+					case 1:
+						icon = 0;
+						break;
+					case 2:
+						icon = 1;
+						break;
+					case 3:
+					case 4:
+					case 5:
+						icon = 2;
+						break;
+					case 6:
+					case 7:
+					case 8:
+						icon = 3;
+						break;
+					case 9:
+					case 10:
+					case 11:
+					default:
+						icon = 4;
+						break;
+				}
+				icon += 4;
+			}
+			else
+			{
+				//figure out birthday
+				int month_delta = Time_Month() - reg_month;
+				int day_delta = Time_MonthDate() - reg_day;
+				int birthday_delta = -1;
+
+				if (month_delta < 0 || month_delta == 0 && day_delta < 0)
+				{
+					birthday_delta = -1;
+				}
+				else if (month_delta == 0 && day_delta == 0)
+				{
+					birthday_delta = 0;
+				}
+				else
+				{
+					birthday_delta = 1;
+				}
+
+				//check if its cake day
+				if (birthday_delta == 0)
+				{
+					icon = 9;
+				}
+				else
+				{
+					//check if we're in the extra "remainder" days from using 30 month days
+					if(days < 366)
+					{
+						//(9 months badge still)
+						icon = 8;
+					}
+					else
+					{
+						//years delta
+						icon = (Time_Year() - reg_year) - 1;
+						//before or after birthday?
+						if (birthday_delta == -1)
+						{
+							icon -= 1;
+						}
+						//ensure sane
+						icon = Maths::Clamp(icon, 0, 9);
+						//shift line
+						icon += 16;
+					}
+				}
+			}
+		}
+		
+		return age_icon_start + icon;
+	}
+
+	return 0;
 }

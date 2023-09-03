@@ -122,22 +122,22 @@ void onNewPlayerJoin(CRules@ this, CPlayer@ player)
 
 	
 	
-	///// TEST ARENAS
-	CBitStream bt;
+	// ///// TEST ARENAS
+	// CBitStream bt;
 
-	bt.write_u8(0); // arena id
+	// bt.write_u8(0); // arena id
 
-	string player1 = "none";
-	string player2 = "none";
+	// string player1 = "none";
+	// string player2 = "none";
 
-	bt.write_string(player2); // player 2
-	bt.write_string(player1); // player 1
-	bt.write_bool(true); // ongoing
+	// bt.write_string(player2); // player 2
+	// bt.write_string(player1); // player 1
+	// bt.write_bool(true); // ongoing
 
-	getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
-	getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
-	getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
-	/////
+	// getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
+	// getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
+	// getRules().SendCommand(getRules().getCommandID(ARENA_UPDATE_INT_ID), bt);
+	// /////
 }
 
 void onPlayerDie(CRules@ this, CPlayer@ victim, CPlayer@ attacker, u8 customData)
@@ -212,7 +212,7 @@ void onPlayerLost(CRules@ this, CPlayer@ player, bool leaver = false)
 
 							if (arena_winner != winner.username)
 							{
-								this.set_u16(ARENA_WINNER_STREAK, 0);
+								this.set_u16(ARENA_WINNER_STREAK, 1);
 								this.Sync(ARENA_WINNER_STREAK, true);
 
 								this.set_string(ARENA_WINNER, winner.username);
