@@ -48,6 +48,8 @@ class ArenaPNGLoader : PNGLoader
 	}
 };
 
+funcdef void MAP_LOADER_CALLBACK();
+
 bool LoadMap(CMap@ map, const string& in fileName)
 {
 	print("LOADING ARENA PNG MAP " + fileName);
@@ -56,5 +58,15 @@ bool LoadMap(CMap@ map, const string& in fileName)
 
 	MiniMap::Initialise();
 
-	return loader.loadMap(map, fileName);
+	if(loader.loadMap(map, fileName))
+	{
+		MAP_LOADER_CALLBACK@ callback;
+        getRules().get("MAP_LOADER_CALLBACK", @callback);
+		if(callback != null)
+			callback();
+		return true;
+	}
+
+	print("MAP LOAD FAILED");
+	return false;
 }
